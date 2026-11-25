@@ -11,6 +11,7 @@
     })
   );
   const main = document.getElementById("main");
+  const ui = { tag: "All", q: "", system: "All systems", clearArmed: false };
 
   /* ---------- helpers ---------- */
   function slug(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""); }
@@ -139,28 +140,32 @@
   }
 
   /* ---------- views ---------- */
-  function viewDrops(q) {
+  function viewDrops() {
     const results = store.get("quiz", {});
     const tags = ["All", ...new Set(DROPS.map((d) => d.tag))];
-    const tag = q.tag || "All";
+    const tag = ui.tag;
     const list = DROPS.filter((d) => tag === "All" || d.tag === tag);
     const done = DROPS.filter((d) => d.id in results).length;
     return `
       <h1>Today's drops</h1>
       <p class="lede">Twelve timed clinical drops. Each plays in under a minute, then gives you bedside language and a one-question check. ${done}/${DROPS.length} quizzes done.</p>
       <div class="toolbar" role="group" aria-label="Filter by tag">
-        ${tags.map((t) => `<a class="btn" href="#/drops?tag=${encodeURIComponent(t)}" aria-pressed="${t === tag}">${esc(t)}</a>`).join("")}
+        ${tags.map((t) => `<button class="btn" data-tag="${esc(t)}" aria-pressed="${t === tag}">${esc(t)}</button>`).join("")}
       </div>
       <div class="grid">
         ${list.map((d) => `
           <article class="card drop-card" style="--c:${d.color}">
             <div class="drop-meta"><span class="chip">${esc(d.tag)}</span><span class="chip">${d.seconds}s</span>
               ${d.id in results ? `<span class="done">${results[d.id] ? "✓ Quiz correct" : "Quiz tried"}</span>` : ""}</div>
-            <h3><a href="#/drop/${d.id}">${esc(d.title)}</a></h3>
+            <h3><a href="#drop-${d.id}">${esc(d.title)}</a></h3>
             <p class="muted">${esc(d.beats[0])}</p>
-            <div class="row"><a class="btn primary" href="#/drop/${d.id}">Play drop</a>${trayButton("drop:" + d.id)}</div>
+            <div class="row"><a class="btn primary" href="#drop-${d.id}">Play drop</a>${trayButton("drop:" + d.id)}</div>
           </article>`).join("")}
       </div>`;
+  }
+
+  function bindDrops() {
+    main.querySelectorAll("[data-tag]").forEach((b) => b.addEventListener("click", () => { ui.tag = b.dataset.tag; render(); }));
   }
 
   function viewDrop(id) {
@@ -171,7 +176,7 @@
     const srcs = d.sources.map((s) => EVIDENCE.find((e) => e.id === s)).filter(Boolean);
     const prior = store.get("quiz", {})[d.id];
     return `
-      <p><a href="#/drops">← All drops</a></p>
+      <p><a href="#drops">← All drops</a></p>
       <section id="player" class="player" style="--c:${d.color}" aria-label="Drop player">
         <div class="bars" aria-hidden="true">${d.beats.map(() => "<span><i></i></span>").join("")}</div>
         <p class="beat" aria-live="polite"></p>
@@ -208,10 +213,10 @@
         </form>
 
         <h2>Sources</h2>
-        ${srcs.length ? `<ul>${srcs.map((s) => `<li><a href="#/evidence">${esc(s.title)}</a> <span class="muted">(reviewed ${s.reviewed})</span></li>`).join("")}</ul>`
+        ${srcs.length ? `<ul>${srcs.map((s) => `<li><a href="#evidence">${esc(s.title)}</a> <span class="muted">(reviewed ${s.reviewed})</span></li>`).join("")}</ul>`
           : `<p class="muted">General critical care nursing practice — follow your hospital's protocol for this infusion.</p>`}
         <p class="muted">Education only. Doses, targets and titration come from provider orders and your hospital's protocols.</p>
-        <p><a class="btn" href="#/drop/${next.id}">Next drop: ${esc(next.title)} →</a></p>
+        <p><a class="btn" href="#drop-${next.id}">Next drop: ${esc(next.title)} →</a></p>
       </div>`;
   }
 
@@ -235,15 +240,15 @@
     });
   }
 
-  function viewAtlas(q) {
+  function viewAtlas() {
     const systems = ["All systems", ...Object.keys(window.GTT_ATLAS_RAW)];
     return `
       <h1>ICU atlas</h1>
       <p class="lede">${ATLAS.length} topics across ${systems.length - 1} systems. Short orientation summaries with a nursing focus — a starting point, not a reference text.</p>
       <div class="toolbar">
-        <input type="search" id="atlasQ" placeholder="Search topics, e.g. CRRT, delirium, tamponade" value="${esc(q.q || "")}" aria-label="Search the atlas">
+        <input type="search" id="atlasQ" placeholder="Search topics, e.g. CRRT, delirium, tamponade" value="${esc(ui.q)}" aria-label="Search the atlas">
         <select id="atlasSys" aria-label="Filter by system">
-          ${systems.map((s) => `<option ${s === (q.system || "All systems") ? "selected" : ""}>${esc(s)}</option>`).join("")}
+          ${systems.map((s) => `<option ${s === ui.system ? "selected" : ""}>${esc(s)}</option>`).join("")}
         </select>
       </div>
       <p class="muted" id="atlasCount" aria-live="polite"></p>
@@ -270,10 +275,7 @@
           <p class="focus"><b>Nursing focus:</b> ${highlight(t.focus, q)}</p>
           <div class="row" style="margin-top:10px">${trayButton("atlas:" + t.id)}</div>
         </article>`).join("") : `<div class="empty">No topics match “${esc(input.value)}”. Try a broader word.</div>`;
-      const params = new URLSearchParams();
-      if (input.value) params.set("q", input.value);
-      if (sys !== "All systems") params.set("system", sys);
-      history.replaceState(null, "", "#/atlas" + (params.toString() ? "?" + params : ""));
+      ui.q = input.value; ui.system = sys;
     }
     input.addEventListener("input", draw);
     sel.addEventListener("change", draw);
@@ -285,18 +287,18 @@
     const drops = keys.filter((k) => k.startsWith("drop:")).map((k) => DROPS.find((d) => "drop:" + d.id === k)).filter(Boolean);
     const topics = keys.filter((k) => k.startsWith("atlas:")).map((k) => ATLAS.find((t) => "atlas:" + t.id === k)).filter(Boolean);
     if (!drops.length && !topics.length) {
-      return `<h1>Shift tray</h1><div class="empty"><p>Your tray is empty.</p><p>Save drops and atlas topics you want to review on shift.</p><a class="btn primary" href="#/drops">Browse drops</a></div>`;
+      return `<h1>Shift tray</h1><div class="empty"><p>Your tray is empty.</p><p>Save drops and atlas topics you want to review on shift.</p><a class="btn primary" href="#drops">Browse drops</a></div>`;
     }
     return `
       <h1>Shift tray</h1>
       <p class="lede">Saved on this device only. ${keys.length} item${keys.length === 1 ? "" : "s"}.</p>
-      <div class="toolbar"><button class="btn" id="printTray">Print tray</button><button class="btn" id="clearTray">Clear tray</button></div>
+      <div class="toolbar"><button class="btn" id="clearTray">${ui.clearArmed ? "Tap again to clear everything" : "Clear tray"}</button></div>
       ${drops.length ? `<h2>Drops</h2><div class="grid">${drops.map((d) => `
         <article class="card drop-card" style="--c:${d.color}">
           <span class="chip">${esc(d.tag)} · ${d.seconds}s</span>
-          <h3><a href="#/drop/${d.id}">${esc(d.title)}</a></h3>
+          <h3><a href="#drop-${d.id}">${esc(d.title)}</a></h3>
           <p class="muted">“${esc(d.bedside.team)}”</p>
-          <div class="row"><a class="btn primary" href="#/drop/${d.id}">Play</a>${trayButton("drop:" + d.id)}</div>
+          <div class="row"><a class="btn primary" href="#drop-${d.id}">Play</a>${trayButton("drop:" + d.id)}</div>
         </article>`).join("")}</div>` : ""}
       ${topics.length ? `<h2>Atlas topics</h2><div class="atlas-list">${topics.map((t) => `
         <article class="card atlas-item">
@@ -308,10 +310,12 @@
         </article>`).join("")}</div>` : ""}`;
   }
   function bindTray() {
-    document.getElementById("clearTray")?.addEventListener("click", () => {
-      if (confirm("Clear everything from your shift tray?")) { tray.clear(); render(); }
+    ui.clearArmed = false;
+    document.getElementById("clearTray")?.addEventListener("click", (e) => {
+      if (e.currentTarget.dataset.armed) { tray.clear(); toast("Tray cleared"); render(); return; }
+      e.currentTarget.dataset.armed = "1";
+      e.currentTarget.textContent = "Tap again to clear everything";
     });
-    document.getElementById("printTray")?.addEventListener("click", () => window.print());
   }
 
   function queueItems() {
@@ -402,7 +406,7 @@
           <h3>${esc(e.title)}</h3>
           <p class="muted" style="margin:0">${esc(e.org)} · ${esc(e.published)}</p>
           <p style="margin:0">${esc(e.scope)}</p>
-          ${used.length ? `<p class="muted" style="margin:0">Used in: ${used.map((d) => `<a href="#/drop/${d.id}">${esc(d.title)}</a>`).join(", ")}</p>` : ""}
+          ${used.length ? `<p class="muted" style="margin:0">Used in: ${used.map((d) => `<a href="#drop-${d.id}">${esc(d.title)}</a>`).join(", ")}</p>` : ""}
           <p style="margin:6px 0 0"><a href="${esc(e.url)}" target="_blank" rel="noopener noreferrer">Open source ↗</a></p>
         </article>`;
       }).join("")}</div>`;
@@ -422,6 +426,24 @@
             : `<span class="btn" aria-disabled="true" data-slot>File not added yet</span>`}</div>
         </article>`).join("")}</div>`;
   }
+  // Inside the claude.ai artifact viewer, plain download links are inert; hand the file over via the
+  // `downloads` capability instead. In a normal browser `window.claude` is absent and the link works as-is.
+  const viewerDownloads = window.claude?.use ? window.claude.use("downloads").catch(() => null) : Promise.resolve(null);
+  main.addEventListener("click", async (e) => {
+    const a = e.target.closest("a[download]");
+    if (!a || !window.claude?.use) return;
+    e.preventDefault();
+    const dl = await viewerDownloads;
+    if (!dl) { toast("Downloads aren't available in this view"); return; }
+    try {
+      const blob = await (await fetch(a.getAttribute("href"))).blob();
+      await dl.save({ filename: a.getAttribute("href").split("/").pop(), data: blob });
+      toast("Saved");
+    } catch (err) {
+      if (err && err.code !== "declined") toast("Couldn't save the file. Try again.");
+    }
+  });
+
   function bindDownloads() {
     // If a file slot was filled after publishing (e.g. the study guide), enable it automatically.
     main.querySelectorAll("[data-slot]").forEach((el) => {
@@ -441,7 +463,7 @@
         <article class="card"><h3>Local policy wins</h3><p>Your hospital's policies, protocols and nomograms take precedence over anything in GttDrop. When they differ, follow local policy and tell the editorial team.</p></article>
         <article class="card"><h3>Judgment at the bedside</h3><p>Drops are simplified on purpose. Real patients are not. Escalate concerns early and use your rapid response team.</p></article>
         <article class="card"><h3>No patient data</h3><p>Don't enter patient identifiers anywhere in GttDrop. The shift tray and pitches are stored only in this browser.</p></article>
-        <article class="card"><h3>Dated evidence</h3><p>Each source shows when it was last reviewed. Guidelines change; check the <a href="#/evidence">evidence shelf</a> for review status.</p></article>
+        <article class="card"><h3>Dated evidence</h3><p>Each source shows when it was last reviewed. Guidelines change; check the <a href="#evidence">evidence shelf</a> for review status.</p></article>
         <article class="card"><h3>No dosing content</h3><p>Drops deliberately avoid medication doses. Use your pharmacy references and order sets.</p></article>
       </div>
       <h2>About this edition</h2>
@@ -449,33 +471,32 @@
   }
 
   function notFound() {
-    return `<div class="empty"><h1>Not found</h1><p>That page doesn't exist.</p><a class="btn primary" href="#/drops">Back to drops</a></div>`;
+    return `<div class="empty"><h1>Not found</h1><p>That page doesn't exist.</p><a class="btn primary" href="#drops">Back to drops</a></div>`;
   }
 
   /* ---------- router ---------- */
   let currentRoute = "";
   function parse() {
     const h = location.hash.replace(/^#\/?/, "") || "drops";
-    const [path, qs] = h.split("?");
-    const parts = path.split("/");
-    return { route: parts[0], arg: parts[1], q: Object.fromEntries(new URLSearchParams(qs || "")) };
+    if (h.startsWith("drop-")) return { route: "drop", arg: h.slice(5) };
+    return { route: h };
   }
   function render() {
     stopPlayer();
-    const { route, arg, q } = parse();
+    const { route, arg } = parse();
     const key = route + (arg || "");
     const changed = key !== currentRoute;
     currentRoute = key;
     const views = {
-      drops: () => [viewDrops(q)],
+      drops: () => [viewDrops(), bindDrops],
       drop: () => [viewDrop(arg), () => bindDrop(arg)],
-      atlas: () => [viewAtlas(q), bindAtlas],
+      atlas: () => [viewAtlas(), bindAtlas],
       tray: () => [viewTray(), bindTray],
       queue: () => [viewQueue(), bindQueue],
       team: () => [viewTeam(), bindTeam],
       evidence: () => [viewEvidence()],
-      downloads: () => [viewDownloads(), bindDownloads],
-      about: () => [viewAbout()]
+      files: () => [viewDownloads(), bindDownloads],
+      guardrails: () => [viewAbout()]
     };
     const [html, bind] = (views[route] || (() => [notFound()]))();
     main.innerHTML = html;
@@ -487,7 +508,7 @@
     });
     document.getElementById("nav").classList.remove("open");
     document.getElementById("menuBtn").setAttribute("aria-expanded", "false");
-    const titles = { drops: "Drops", drop: "Drop", atlas: "Atlas", tray: "Shift tray", queue: "Queue", team: "Team", evidence: "Evidence", downloads: "Downloads", about: "Guardrails" };
+    const titles = { drops: "Drops", drop: "Drop", atlas: "Atlas", tray: "Shift tray", queue: "Queue", team: "Team", evidence: "Evidence", files: "Downloads", guardrails: "Guardrails" };
     document.title = (titles[route] ? titles[route] + " · " : "") + "GttDrop";
     if (changed) { window.scrollTo(0, 0); main.focus({ preventScroll: true }); }
   }
