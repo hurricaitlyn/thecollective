@@ -52,6 +52,22 @@ node tests/smoke.js
 
 Uses Playwright + Chromium to check the feed, filters, player, quiz, tray persistence, atlas search, queue, evidence, downloads (real PDFs), routing, and the 375px mobile layout.
 
+## MR.ME — medical record memory (`mrme/`)
+
+A second, separate app in this repo: an accessible, phone-first medical record for a patient, their caregiver, or their care team. Built from the "MR.ME v2" Claude Design prototype (Industry design tokens: Barlow / Barlow Condensed, square blueprint frames, slate accent).
+
+| Screen | Route | Notes |
+| --- | --- | --- |
+| Sign in | `#signin` | Email/password (validated), Face ID / Apple / MyChart shortcuts, then "Who are you signing in as?" (Patient, Caregiver, Clinician). |
+| Home | `#home` | Attention alert, today's medicines checklist, next appointment, Companion card, toggles for the alert and Companion card. |
+| Health | `#health`, `#condition-<id>`, `#med-<id>` | Conditions grouped by diagnosis, with their medicines, appointments, notes; medicine detail. |
+| History | `#timeline`, `#entry-<id>` | Filterable timeline and entry detail with a family message. |
+| Add | `#add` | Record a visit, medicine (scan label fills the form), reading, paper/photo upload, symptom with severity, portal connections with search. |
+| Companion | `#companion`, `#companion-<topic>` | Ask a question, or read topics on food, conditions and medicines (Read aloud uses the browser's speech). |
+| Me | `#me` | Allergies, surgeries, history, who can see the record, outside records, sign out, text size and high contrast. |
+
+Open `mrme/index.html` (or `/mrme/` when serving the folder). Sample data lives in `mrme/js/data.js`; settings, medicines taken and portal connections are kept in this browser. Test: `node tests/mrme.js`.
+
 ## Publish as a claude.ai artifact
 
 ```sh
