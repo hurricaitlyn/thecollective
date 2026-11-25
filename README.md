@@ -8,14 +8,14 @@ Timed, Vine-style ICU clinical drops for nurses, with a searchable atlas and a d
 
 | Area | Route | Notes |
 | --- | --- | --- |
-| Drops | `#/drops`, `#/drop/:id` | 12 timed drops (20–45s). Play/pause, step, loop, skip; then bedside language (patient / family / team) and a one-question quiz. |
-| Atlas | `#/atlas` | 170 topics across 14 systems. Live search with highlighting and system filter; search is kept in the URL. |
-| Shift tray | `#/tray` | Saved drops and atlas topics, stored in this browser. Printable. |
-| Editorial queue | `#/queue` | Pitched → Drafting → In review → Scheduled. Pitches are stored in this browser. |
-| Team | `#/team` | Team wins, rotating encouragement, nursing insights. |
-| Evidence shelf | `#/evidence` | Dated sources (SCCM ICU Liberation, PADIS 2018 + 2025 focused update, AHA CPR/ECC 2025, SSC 2021, ADA inpatient). Sources not reviewed within 31 days are flagged "Review due". |
-| Downloads | `#/downloads` | Two ICU communication boards (PDF) and a slot for the MGH study guide. |
-| Guardrails | `#/about` | Clinical guardrails. |
+| Drops | `#drops`, `#drop-<id>` | 12 timed drops (20–45s). Play/pause, step, loop, skip; then bedside language (patient / family / team) and a one-question quiz. |
+| Atlas | `#atlas` | 170 topics across 14 systems. Live search with highlighting and system filter. |
+| Shift tray | `#tray` | Saved drops and atlas topics, stored in this browser. |
+| Editorial queue | `#queue` | Pitched → Drafting → In review → Scheduled. Pitches are stored in this browser. |
+| Team | `#team` | Team wins, rotating encouragement, nursing insights. |
+| Evidence shelf | `#evidence` | Dated sources (SCCM ICU Liberation, PADIS 2018 + 2025 focused update, AHA CPR/ECC 2025, SSC 2021, ADA inpatient). Sources not reviewed within 31 days are flagged "Review due". |
+| Downloads | `#files` | Two ICU communication boards (PDF) and a slot for the MGH study guide. |
+| Guardrails | `#guardrails` | Clinical guardrails. |
 
 ## Run it
 
@@ -51,3 +51,11 @@ node tests/smoke.js
 ```
 
 Uses Playwright + Chromium to check the feed, filters, player, quiz, tray persistence, atlas search, queue, evidence, downloads (real PDFs), routing, and the 375px mobile layout.
+
+## Publish as a claude.ai artifact
+
+```sh
+python3 scripts/build_artifact.py dist
+```
+
+Produces `dist/gttdrop.html` plus `dist/downloads/*.pdf`. Publish with the `downloads` capability so the PDF buttons work inside the viewer.
